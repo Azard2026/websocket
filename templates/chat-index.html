@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enter User</title>
+</head>
+<body>
+    <div class="parent">
+        <div class="child">
+            <h1>Enter users</h1>
+            <form action="" method="POST">
+                {% csrf_token %}
+                {% if error %}
+                <p style="color: red;">{{ error }}</p>
+                {% endif %}
+                <label for="username">Username</label><br>
+                <input type="text" id="username" placeholder="Username" name="username" required><br>
+                <label for="user1">user name</label><br>
+                <input type="text" id="user1" placeholder="user1 name" name="user1" required><br>
+                <center><button type="submit">Submit</button></center><br>
+            </form>
+        </div>
+    </div>
+</body>
+<style>
+* {
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+    font-family: 'Arial', sans-serif;
+}
+
+.parent {
+    background-color: #ECE5DD;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+}
+
+.child {
+    background-color: #FFFFFF;
+    height: 70vh;
+    width: 40%;
+    border-radius: 15px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+form {
+    width: 80%;
+}
+
+input {
+    padding: 10px;
+    border: 1px solid #DADADA;
+    width: 100%;
+    margin: 10px 0;
+    border-radius: 25px;
+    outline: none;
+}
+
+input:focus {
+    border-color: #25D366;
+    box-shadow: 0 0 5px #25D366;
+}
+
+button {
+    background-color: #25D366;
+    padding: 10px;
+    color: white;
+    border: none;
+    border-radius: 25px;
+    width: 40%;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+button:hover {
+    background-color: #075E54;
+    transform: scale(1.05);
+}
+</style>
+</html>

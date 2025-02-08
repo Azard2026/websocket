@@ -1,0 +1,161 @@
+<!-- call.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Video Call - {{ room_name }}</title>
+    <style>
+        #video-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+            padding: 1rem;
+        }
+        video {
+            width: 100%;
+            height: auto;
+            background: black;
+            border-radius: 8px;
+        }
+        #controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 1rem;
+        }
+        button {
+            padding: 10px 20px;
+            background: #075e54;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="video-container">
+        <video id="local-video" autoplay muted></video>
+    </div>
+    <div id="controls">
+        <button id="start-call">Start Call</button>
+        <button id="leave-call" style="display: none;">Leave Call</button>
+    </div>
+
+    <script>
+
+      const config = JSON.parse('{{ config|escapejs }}');
+        const roomName = '{{ room_name }}';
+        const username = '{{ user }}';
+        
+        let localStream;
+        let peerConnections = {};
+        const socket = new WebSocket(
+            `wss://${window.location.host}/ws/call/${roomName}/`
+        );
+
+        // WebSocket handlers
+        socket.onmessage = async (event) => {
+            const data = JSON.parse(event.data);
+            
+            if (data.type === 'offer') {
+                await handleOffer(data);
+            } else if (data.type === 'answer') {
+                await handleAnswer(data);
+            } else if (data.type === 'ice-candidate') {
+                handleICECandidate(data);
+            } else if (data.type === 'user-joined') {
+                createPeerConnection(data.userId);
+            }
+        };
+
+        // Media setup
+        async function setupMedia() {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: true, 
+                    audio: true 
+                });
+                document.getElementById('local-video').srcObject = localStream;
+            } catch (error) {
+                console.error('Error accessing media devices:', error);
+            }
+        }
+
+        // Peer Connection Management
+        function createPeerConnection(userId) {
+            const pc = new RTCPeerConnection(config);
+            
+            pc.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.send(JSON.stringify({
+                        type: 'ice-candidate',
+                        candidate: event.candidate,
+                        target: userId
+                    }));
+                }
+            };
+
+            pc.ontrack = (event) => {
+                const remoteVideo = document.createElement('video');
+                remoteVideo.id = `remote-${userId}`;
+                remoteVideo.autoplay = true;
+                remoteVideo.srcObject = event.streams[0];
+                document.getElementById('video-container').appendChild(remoteVideo);
+            };
+
+            localStream.getTracks().forEach(track => {
+                pc.addTrack(track, localStream);
+            });
+
+            peerConnections[userId] = pc;
+        }
+
+        // Signaling handlers
+        async function handleOffer(data) {
+            const pc = peerConnections[data.userId] || createPeerConnection(data.userId);
+            
+            await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            
+            socket.send(JSON.stringify({
+                type: 'answer',
+                answer: answer,
+                target: data.userId
+            }));
+        }
+
+        async function handleAnswer(data) {
+            const pc = peerConnections[data.userId];
+            await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+        }
+
+        function handleICECandidate(data) {
+            const pc = peerConnections[data.userId];
+            if (pc) {
+                pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+            }
+        }
+
+        // UI Controls
+        document.getElementById('start-call').onclick = async () => {
+            await setupMedia();
+            document.getElementById('start-call').style.display = 'none';
+            document.getElementById('leave-call').style.display = 'block';
+            socket.send(JSON.stringify({ type: 'user-joined', userId: username }));
+        };
+
+        document.getElementById('leave-call').onclick = () => {
+            Object.values(peerConnections).forEach(pc => pc.close());
+            peerConnections = {};
+            localStream.getTracks().forEach(track => track.stop());
+            window.location.reload();
+        };
+
+        // Initialize
+        setupMedia();
+    </script>
+</body>
+</html>
